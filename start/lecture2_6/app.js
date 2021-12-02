@@ -1,6 +1,6 @@
 import * as THREE from '../../libs/three/three.module.js';
 import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
-import { FBXLoader } from '../../libs/three/jsm/FBXLoader.js';
+import { FBXLoader } from '../../libs/three124/jsm/FBXLoader.js';
 import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
@@ -33,7 +33,9 @@ class App{
 		container.appendChild( this.renderer.domElement );
 		
         //Add code here
-        
+        this.loadingBar = new LoadingBar();
+        // this.loadGLTF(); // to load gltf formatted file
+        this.loadFBX(); // to load fbx formatted file
         
         this.controls = new OrbitControls( this.camera, this.renderer.domElement );
         this.controls.target.set(0, 3.5, 0);
@@ -62,9 +64,52 @@ class App{
     
     loadGLTF(){
         const self = this;
+        const loader = new GLTFLoader().setPath("../../assets/")
+
+        loader.load(
+            'office-chair.glb', // 3D assets 's path
+            function(gltf){ // onLoad callback
+                self.chair = gltf.scene; // GLTF's loader's scene is being used
+
+                const bbox = new THREE.Box3().setFromObject( gltf.scene );
+                console.log(`min:${vector3ToString(bbox.min, 2)} - max:${vector3ToString(bbox.max, 2)}`);
+
+                self.scene.add( gltf.scene ); // add to scene object
+                self.loadingBar.visible = false; // hide the loading bar
+                self.renderer.setAnimationLoop( self.render.bind(self) ); // starting a rendering loop 
+            },
+            function(xhr){ // onProgress callback
+                self.loadingBar.progress = xhr.loaded/xhr.total;
+            },
+            function(err){ // onError callback
+                console.log( "An error happened" );
+            }
+        )
     }
     
     loadFBX(){
+        const self = this;
+        const loader = new FBXLoader().setPath("../../assets/")
+
+        loader.load(
+            'office-chair.fbx', // 3D assets 's path
+            function(object){ // onLoad callback
+                self.chair = object; // FBX's loader's scene is being used
+
+                const bbox = new THREE.Box3().setFromObject( object );
+                console.log(`min:${vector3ToString(bbox.min, 2)} - max:${vector3ToString(bbox.max, 2)}`);
+
+                self.scene.add( object ); // add to scene object
+                self.loadingBar.visible = false; // hide the loading bar
+                self.renderer.setAnimationLoop( self.render.bind(self) ); // starting a rendering loop 
+            },
+            function(xhr){ // onProgress callback
+                self.loadingBar.progress = xhr.loaded/xhr.total;
+            },
+            function(err){ // onError callback
+                console.log( "An error happened" );
+            }
+        )
     }
     
     resize(){
