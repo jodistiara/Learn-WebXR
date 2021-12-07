@@ -90,6 +90,13 @@ class App{
             }
         }
         
+        this.dolly = new THREE.Object3D(); // an object to move the camera in the scene
+        this.dolly.position.z = 5;
+        this.dolly.add( this.camera );
+        this.scene.add( this.dolly );
+
+        this.dummyCam = new THREE.Object3D();
+        this.camera.add( this.dummyCam );
         
     } 
     
@@ -166,7 +173,31 @@ class App{
     
     handleController( controller, dt ){
         if (controller.userData.selectPressed ){
+            const wallLimit = 1.3;
+            let pos = this.dolly.position.clone();
+            pos.y += 1; // set the ray origin 1m above the ground level
+            const speed = 2;
+            const quaternion = this.dolly.quaternion.clone(); // quaternion → defines orientation in 3D Object
+            this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion());
+            this.dolly.getWorldDirection( this.workingVector ); // set the vector pass the orientation 
+            this.workingVector.negate(); // reverse de direction
+
+            this.raycaster.set( pos, this.workingVector ); // add raycaster (origin, direction)
+
+            let blocked = false;
             
+            let intersect = this.raycaster.intersectObjects( this.colliders ); // the box objects are stored in colliders
+
+            if (intersect.length>0){
+                if (intersect[0].distance < wallLimit) blocked = true; // stops the movement once they hit a certain distance from the object
+            }
+
+            if (!blocked){ // if not blocked, keeps the camera moving
+                this.dolly.translateZ( -dt*speed ); // controlling the speed of movement; makes the camera moves in a certain speed
+            }
+
+            this.dolly.position.y = 0; // lock the y axis (height)
+            this.dolly.quaternion.copy( quaternion );
         }
     }
     

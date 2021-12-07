@@ -7,7 +7,7 @@ import { Stats } from '../../libs/stats.module.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
 import {
 	Constants as MotionControllerConstants,
-	fetchProfile,
+	fetchProfile, // helps accessing more advance controllers features 
 	MotionController
 } from '../../libs/three/jsm/motion-controllers.module.js';
 
@@ -100,7 +100,7 @@ class App{
             height: 256,
             body: { type: "text" }
         }
-        const ui = new CanvasUI( { body: "" }, config );
+        const ui = new CanvasUI( { body: "" }, config ); // using CanvasUI library to overcome the inability of using the browser's DOM to display DOM element
         ui.mesh.position.set(0, 1.5, -1);
         this.scene.add( ui.mesh );
         return ui;
@@ -133,7 +133,29 @@ class App{
     }
     
     updateGamepadState(){
-        
+        const session = this.renderer.xr.getSession();
+        const inputSource = session.inputSources[0];
+
+        if (inputSource && inputSource.gamepad && this.gamepadIndices && this.ui && this.buttonStates){
+            const gamepad = inputSource.gamepad;
+            try{
+                Object.entries( this.buttonStates ).forEach(( [ key, value ] ) => {
+                    const buttonIndex = this.gamepadIndices[key].button;
+                    if (key.indexOf('touchpad')!=-1 || key.indexOf('thumbstick')!=-1){
+                        const xAxisIndex = this.gamepadIndices[key].xAxis;
+                        const yAxisIndex = this.gamepadIndices[key].yAxis;
+                        this.buttonStates[key].button = gamepad.buttons[buttonIndex].value;
+                        this.buttonStates[key].xAxis = gamepad.axes[xAxisIndex].toFixed(2);
+                        this.buttonStates[key].yAxis = gamepad.axes[yAxisIndex].toFixed(2);
+                    }else{
+                        this.buttonStates[key].button = gamepad.buttons[buttonIndex].value;
+                    }
+                    this.updateUI();
+                });
+            }catch(e){
+                console.warn("An Error Occured.");
+            }
+        }
     }
     
     setupXR(){
@@ -144,7 +166,25 @@ class App{
         const self = this;
         
         function onConnected( event ){
-            
+            // self.updateControllers( { right: { trigger: true, squeeze: true } });
+            const info = {}; // store controller's info
+            fetchProfile(event.data, DEFAULT_PROFILES_PATH, DEFAULT_PROFILE
+                ).then( ({ profile, assetPath }) => {
+                    info.name = profile.profileId;
+                    info.targetRayMode = event.userData.targetRayMode;
+
+                    Object.entries( profile.layouts ).forEach( ([key, layout]) => { // get the object entries and iterate over key and value
+                        const components = {};
+                        Object.values( layout.components ).forEach( (component) => {
+                            components[component.rootNodeName] = component.gamepadIndices;
+                        });
+                        info[key] = components;
+                    });
+
+                    self.createButtonStates( info.right );
+
+                    self.updateControllers( info );
+                })
         }
          
         const controller = this.renderer.xr.getController( 0 );

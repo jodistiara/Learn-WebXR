@@ -64,10 +64,10 @@ class App{
         this.room.geometry.translate( 0, 3, 0 );
         this.scene.add( this.room );
         
-        const geometry = new THREE.IcosahedronBufferGeometry( this.radius, 2 );
+        const geometry = new THREE.IcosahedronBufferGeometry( this.radius, 2 ); // create ball
 
-        for ( let i = 0; i < 200; i ++ ) {
-
+        for ( let i = 0; i < 200; i ++ ) { // add 200 balls inside the room
+            
             const object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
 
             object.position.x = this.random( -2, 2 );
@@ -77,6 +77,12 @@ class App{
             this.room.add( object );
         }
         
+        this.highlight = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial({
+            color: 0xFFFFFF,
+            side: THREE.BackSide // highlight is added on the back side of the object 
+        }));
+        this.highlight.scale.set( 1.2, 1.2, 1.2);
+        this.scene.add( this.highlight );
     }
     
     setupXR(){
@@ -85,7 +91,24 @@ class App{
         const button = new VRButton( this.renderer );
         
         this.controllers = this.buildControllers();
+
+        const self = this; // to access the app instance inside a function
         
+        function onSelectStart(){
+            this.children[0].scale.z = 10;
+            this.userData.selectPressed = true;
+        }
+
+        function onSelectEnd(){
+            this.children[0].scale.z = 0;
+            self.highlight.visible = false;
+            this.userData.selectPressed = false;
+        }
+
+        this.controllers.forEach( (controller) => {
+            controller.addEventListener( 'selectstart', onSelectStart );
+            controller.addEventListener( 'selectend', onSelectEnd );
+        })
     }
     
     buildControllers(){
@@ -118,7 +141,25 @@ class App{
     }
     
     handleController( controller ){
-        
+        if (controller.userData.selectPressed){ // check if the trigger button is pressed
+            controller.children[0].scale.z = 10;
+
+            this.workingMatrix.identity().extractRotation( controller.matrixWorld );
+            
+            // raycaster needs origin and direction
+            this.raycaster.ray.origin.setFromMatrixPosition( controller.matrixWorld );
+            this.raycaster.ray.direction.set( 0, 0, -1 ).applyMatrix4( this.workingMatrix );
+
+            const intersects = this.raycaster.intersectObjects( this.room.children ); // return the object that intersects with the ray
+
+            if (intersects.length>0){
+                intersects[0].object.add( this.highlight ); // take the very first object that intersects with the ray
+                this.highlight.visible = true;
+                controller.children[0].scale.z = intersects[0].distance; // make the ray stops at the object, not passing through the object
+            }else{
+                this.highlight.visible = false;
+            }
+        }
     }
     
     resize(){

@@ -133,9 +133,36 @@ class App{
             
             case 'tracked-pointer':
                 //Enter code here
-                
-                    
-                }),
+                loader = new GLTFLoader().setPath('../../assets/');
+                loader.load('flash-light.glb',
+                    (gltf) => {
+                        const flashLight = gltf.scene.children[2];
+                        const scale = 0.6;
+                        flashLight.scale.set( scale, scale, scale );
+                        
+                        controller.add( flashLight );
+                        // controller.add( gltf.scene ); // creates a bigger flashlight which seems unnatural
+
+                        // add the light beem
+                        self.spotlight = new THREE.Group()
+                        
+                        const spotlight = new THREE.SpotLight( 0xFFFFFF, 10, 12, Math.PI/15, 0.3);
+                        spotlight.position.set(0,0,0);
+                        spotlight.target.position.set(0,0,-1);
+                        self.spotlight.add( spotlight.target );
+                        self.spotlight.add( spotlight );
+
+                        controller.add( self.spotlight );
+                        self.spotlight.visible = false;
+
+                        // create cone mesh to make the spotlight's light cone shows more clearly
+                        geometry = new THREE.CylinderBufferGeometry( 0.03, 1, 5, 32, true);
+                        geometry.rotateX(Math.PI/2);  // by default, the cone is created on the Y axis so we rotate it by 90deg to get the actual spotlight effect
+                        material = new SpotLightVolumetricMaterial();
+                        const cone = new THREE.Mesh( geometry, material );
+                        cone.translateZ( -2.6 ); // make the light cone fit with the flashlight shape
+                        self.spotlight.add( cone ); // add to the group object
+                    }),
                     null,
                     (error) => {
                     console.error('An error happened');

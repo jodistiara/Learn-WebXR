@@ -70,15 +70,66 @@ class App{
     }
     
     initPhysics(){
+        this.world = new CANNON.World();
         
+        this.timeStep = 1.0/60.0;
+        this.damping = 0.01;
+
+        this.world.broadphase = new CANNON.NaiveBroadphase();
+        this.world.gravity.set(0, -10, 0); // set the gravity into -10 on y axis
+
+        this.helper = new CannonHelper( this.scene, this.world );
+
+        const groundBody = new CANNON.Body( { mass: 0}); // mass = 0 is a fix body which will not move under gravity or any other forces, but does affect with the collision
+        groundBody.quaternion.setFromAxisAngle( new CANNON.Vec3(1,0,0), -Math.PI/2); // -90deg
+        const groundShape = new CANNON.Plane(); // an infinite x,y planme
+        groundBody.addShape( groundShape );
+        this.world.add( groundBody );
+        this.helper.addVisual( groundBody, 0xFFAA00 ); // creates three js mesh of the body (saved as a property called threemesh)
+
+        const shape = new CANNON.Sphere(0.1);
+        this.jointBody = new CANNON.Body( { mass: 0 });
+        this.jointBody.addShape( shape ); // all the shapes added to jointBody will have the same properties
+        this.jointBody.collisionFilterGroup = 0; // these bodies will not affect other rigid bodies. Collision are ignored.
+        this.jointBody.collisionFilterMask = 0; // these bodies will not be affected by other rigid bodies. Collision are ignored.
+        this.world.add( this.jointBody );
+
+        this.box = this.addBody();
     }  
     
     addBody(box=true){
-        
+        let shape;
+
+        if (!box){
+            shape = new CANNON.Sphere(0.5);
+        }else{
+            shape = new CANNON.Box( new CANNON.Vec3(0.5, 0.5, 0.5));
+        }
+        const material = new CANNON.Material();
+        const body = new CANNON.Body( { mass: 5, material: material });
+        body.addShape( shape );
+
+        body.position.set( 0, 1, -3 );
+        body.linearDamping = this.damping;
+        this.world.add( body );
+
+        this.helper.addVisual( body );
+
+        return body;
     }
     
-    addConstraint(pos, body){
-        
+    addConstraint(pos, body){ // pos = world position, body = the box
+        const pivot = pos.clone();
+        body.threemesh.worldToLocal( pivot ); // converts a world coordinate into a local coordinate
+        this.jointBody.position.copy(pos); // moves the jointBody to a world position
+
+        // the PointToPointConstraint method takes a body1:CANNON.Body instance, CANNON.Vec3 instance giving the constraint point in the local coordinate space of body1
+        // then a body2:CANNON.Body instance, CANNON.Vec3 instance giving the constraint point in the local coordinate space of body2
+        const constraint = new CANNON.PointToPointConstraint( body, pivot, this.jointBody, new CANNON.Vec3(0,0,0) );
+
+        this.world.addConstraint( constraint ); // activate the constraint
+
+        this.controller.userData.constraint = constraint;
     }
     
     setupXR(){
@@ -92,8 +143,8 @@ class App{
             
             this.userData.selectPressed = true;
             if (this.userData.selected){
-                self.addConstraint( self.marker.getWorldPosition( self.origin ), self.box );
-                self.controller.attach( self.marker );
+                self.addConstraint( self.marker.getWorldPosition( self.origin ), self.box ); // the constraint is the world position of the marker
+                self.controller.attach( self.marker ); // makes the marker as the controller's child while retaining its world position
             }
         }
 
@@ -102,10 +153,10 @@ class App{
             this.userData.selectPressed = false;
             const constraint = self.controller.userData.constraint;
             if (constraint){
-                self.world.removeConstraint(constraint);
+                self.world.removeConstraint(constraint); // returns the marker to be the child of the scene, not the controller
                 self.controller.userData.constraint = undefined;
                 self.scene.add( self.marker );
-                self.marker.visible = false;
+                self.marker.visible = false; // hides the marker
             }
             
         }
