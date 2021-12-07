@@ -1,10 +1,10 @@
-import * as THREE from '../../libs/three/three.module.js';
-import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
-import { DRACOLoader } from '../../libs/three/jsm/DRACOLoader.js';
-import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
+import * as THREE from '../../libs/three124/three.module.js';
+import { GLTFLoader } from '../../libs/three124/jsm/GLTFLoader.js';
+import { DRACOLoader } from '../../libs/three124/jsm/DRACOLoader.js';
+import { RGBELoader } from '../../libs/three124/jsm/RGBELoader.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
 import { Stats } from '../../libs/stats.module.js';
-import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
+import { OrbitControls } from '../../libs/three124/jsm/OrbitControls.js';
 
 
 class App{
@@ -67,7 +67,7 @@ class App{
     }
     
     initScene(){
-        this.loadGLTF( 'knight' );
+        this.loadGLTF( 'knight' ); // the gltf file we export from Blender on the previous lecture
     }
     
     addButtonEvents(){
@@ -81,6 +81,27 @@ class App{
             const btn = document.getElementById(`btn${i}`);
             btn.addEventListener( 'click', onClick );
         }    
+    }
+    
+    set action(name){
+        if (this.actionName == name) return; // check if the actionName is equal to the passed name, then do nothing
+
+        const clip = this.animations[name]; // get the clip based on passed name
+
+        if (clip!==undefined){
+            const action = this.mixer.clipAction( clip ); // get the action 
+            if (name == "Die"){
+                action.loop = THREE.LoopOnce;
+                action.clampWhenFinished = true;
+            }
+            this.actionName = name;
+            if ( this.curAction ) this.curAction.crossFadeTo( action, 0.5 );
+
+            action.enabled = true;
+            action.play();
+
+            this.curAction = action;
+        }
     }
     
     loadGLTF(filename){
@@ -97,7 +118,27 @@ class App{
 			`${filename}.glb`,
 			// called when the resource is loaded
 			function ( gltf ) {
-                
+                self.animations = {};
+
+                gltf.animations.forEach( anim => {
+                    self.animations[anim.name] = anim;
+                });
+
+                self.addButtonEvents();
+
+                self.knight = gltf.scene.children[0]; // get the 'Knight' object from scene
+
+                self.mixer = new THREE.AnimationMixer( self.knight ); // pass the 3d object and converts it as a mixer
+
+                self.scene.add( self.knight );
+
+                self.loadingBar.visible = false;
+
+                const scale = 0.01;
+                self.knight.scale.set( scale, scale, scale );
+
+                self.action = "Idle"; 
+
                 self.renderer.setAnimationLoop( self.render.bind(self) );
 			},
 			// called while loading is progressing
@@ -124,7 +165,7 @@ class App{
 	render( ) {   
         const dt = this.clock.getDelta();
         this.stats.update();
-        if (this.mixer) this.mixer.update( dt )
+        if (this.mixer) this.mixer.update( dt ) // essentials to view the animation
         this.renderer.render( this.scene, this.camera );
     }
 }
