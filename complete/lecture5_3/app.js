@@ -99,7 +99,7 @@ class App{
                     this.type = "";
                     profiles.forEach( profile => {
                         if (profile.indexOf('touchpad')!=-1) this.type = 'touchpad';
-                        if (profile.indexOf('thumbstick')!=-1) this.type = 'thumbstick';
+                        if (profile.indexOf('thumbstick')!=-1) this.type = 'thumbstick'; // if has both then will be set into thumbstick
                     });
                     const targetRayMode = inputSource.targetRayMode;
                     info.push({ gamepad, handedness, profiles, targetRayMode });

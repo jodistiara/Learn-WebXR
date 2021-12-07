@@ -19,12 +19,13 @@ class VRButton{
         
        if (this.sessionInit === undefined ) this.sessionInit = { optionalFeatures: [ 'local-floor', 'bounded-floor' ] };
         
-        if ( 'xr' in navigator ) {
+        if ( 'xr' in navigator ) { // check if xr property is available on the navigator var
 
 			const button = document.createElement( 'button' );
 			button.style.display = 'none';
             button.style.height = '40px';
             
+            // to check if the XR session is supported
 			navigator.xr.isSessionSupported( this.sessionMode ).then( ( supported ) => {
 
 				supported ? this.showEnterVR( button ) : this.showWebXRNotFound( button );
