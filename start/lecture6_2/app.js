@@ -53,6 +53,15 @@ class App{
 		this.loadingBar = new LoadingBar();
 		
 		this.loadCollege();
+
+        const self = this;
+
+        fetch('./college.json') // load the file
+            .then( response => response.json() ) // consuming the http response as promise to json
+            .then( obj => {
+                self.boardShown = '';
+                self.boardData = obj; // convert the json promise to the javascript object
+            })
 	}
 	
     setEnvironment(){
@@ -267,12 +276,34 @@ class App{
         return ( this.controllers !== undefined && (this.controllers[0].userData.selectPressed || this.controllers[1].userData.selectPressed) );    
     }
     
-    createUI(){
-        
+    createUI(){ // using CanvasUI
+        const config = {
+            panleSize: { height: 0.5 },
+            height: 256,
+            name: { fontSize: 50, height: 70 },
+            info: { position: { top: 70 }, backgroundColor: "#ccc", fontColor: "#000" }
+        }
+
+        const content = {
+            name: "name",
+            info: "info"
+        }
+
+        this.ui = new CanvasUI( content, config );
+        this.scene.add( this.ui.mesh ); // the ui's mesh is added to the scene
     }
     
     showInfoboard( name, obj, pos ){
-        
+        if (this.ui===undefined) return;
+
+        this.ui.position.copy( pos ).add( this.workingVec3.set( 0, 1.3, 0 )); // lift the position up a bit (1.3)
+        const camPos = this.dummyCam.getWorldPosition( this.workingVec3 );
+        this.ui.updateElement( 'name', obj.name );
+        this.ui.updateElement( 'info', obj.info );
+        this.ui.update(); // to update the ui
+        this.ui.lookAt( camPos ); // make the UI panel to point toward the camera
+        this.ui.visible = true;
+        this.boardShown = name;
     }
 
 	render( timestamp, frame ){
@@ -282,6 +313,25 @@ class App{
             this.moveDolly(dt);
         }
         
+        if ( this.boardData ){
+            const scene = this.scene;
+            const dollyPos = this.dolly.getWWorldPosition( this.workingVec3 );
+            let boardFound = false;
+            Object.entries( this.boardData ).forEach( ([ name, info ]) => {
+                const obj = scene.getObjectByName( name );
+                if ( obj!==undefined ){
+                    const pos = obj.getWorldPosition( this.workingVec3b );
+                    if ( dollyPos.distanceTo(pos)<3 ){
+                        boardFound = true;
+                        if (this.boardShown!==name) this.showInfoboard( name, info, pos );
+                    }
+                }
+            });
+            if (!boardFound){
+                this.boardShown = '';
+                this.ui.visible = false;
+            }
+        }
         this.stats.update();
 		this.renderer.render(this.scene, this.camera);
 	}

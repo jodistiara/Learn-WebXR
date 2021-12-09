@@ -18,16 +18,16 @@ class App{
 		this.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.01, 500 );
 		this.camera.position.set( 0, 1.6, 0 );
         
-        this.dolly = new THREE.Object3D(  );
+        this.dolly = new THREE.Object3D(  ); 
         this.dolly.position.set(0, 0, 10);
-        this.dolly.add( this.camera );
-        this.dummyCam = new THREE.Object3D();
-        this.camera.add( this.dummyCam );
+        this.dolly.add( this.camera ); // 1 add camera to this object
+        this.dummyCam = new THREE.Object3D(); // object added to the camera. necessary to get the camera's orientation
+        this.camera.add( this.dummyCam ); 
         
 		this.scene = new THREE.Scene();
-        this.scene.add( this.dolly );
+        this.scene.add( this.dolly ); // 2 add object to the scene
         
-		const ambient = new THREE.HemisphereLight(0xFFFFFF, 0xAAAAAA, 0.8);
+		const ambient = new THREE.HemisphereLight(0xFFFFFF, 0xAAAAAA, 0.8); // add light
 		this.scene.add(ambient);
 			
 		this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -39,6 +39,7 @@ class App{
 	
         window.addEventListener( 'resize', this.resize.bind(this) );
         
+        //useful properties
         this.clock = new THREE.Clock();
         this.up = new THREE.Vector3(0,1,0);
         this.origin = new THREE.Vector3();
@@ -78,9 +79,9 @@ class App{
     
 	loadCollege(){
         
-		const loader = new GLTFLoader( ).setPath(this.assetsPath);
-        const dracoLoader = new DRACOLoader();
-        dracoLoader.setDecoderPath( '../../libs/three/js/draco/' );
+		const loader = new GLTFLoader( ).setPath(this.assetsPath); // compressed content
+        const dracoLoader = new DRACOLoader(); // to uncompress the content
+        dracoLoader.setDecoderPath( '../../libs/three/js/draco/' ); // to find the js file needs for decompression
         loader.setDRACOLoader( dracoLoader );
         
         const self = this;
@@ -95,10 +96,10 @@ class App{
                 const college = gltf.scene.children[0];
 				self.scene.add( college );
 				
-				college.traverse(function (child) {
+				college.traverse(function (child) { // useful instance to iterate every child regardless of its depth
     				if (child.isMesh){
 						if (child.name.indexOf("PROXY")!=-1){
-							child.material.visible = false;
+							child.material.visible = false; // set the material visibility to false, not the object, in order to make the raycasting works
 							self.proxy = child;
 						}else if (child.material.name.indexOf('Glass')!=-1){
                             child.material.opacity = 0.1;
@@ -106,7 +107,7 @@ class App{
                         }else if (child.material.name.indexOf("SkyBox")!=-1){
                             const mat1 = child.material;
                             const mat2 = new THREE.MeshBasicMaterial({map: mat1.map});
-                            child.material = mat2;
+                            child.material = mat2; // do not want to use lighting so the material (mesh) is changed to MeshBasic
                             mat1.dispose();
                         }
 					}
@@ -214,7 +215,36 @@ class App{
             pos = this.dolly.getWorldPosition( this.origin );
 		}
 
-        //Enter code here
+        // handling the camera gets too close to the wall
+        dir.set( -1,0,0 );
+        dir.applyMatrix4( this.dolly.matrix );
+        dir.normalize();
+        this.raycaster.set( pos, dir );
+        intersect = this.raycaster.intersectObject( this.proxy );
+
+        if (intersect.length > 0){
+            if (intersect[0].distance < wallLimit ) this.dolly.translateX( wallLimit - intersect[0].distance );
+        }
+        
+        dir.set( 1,0,0 );
+        dir.applyMatrix4( this.dolly.matrix );
+        dir.normalize();
+        this.raycaster.set( pos, dir );
+        intersect = this.raycaster.intersectObject( this.proxy );
+
+        if (intersect.length > 0){
+            if (intersect[0].distance < wallLimit ) this.dolly.translateX( intersect[0].distance - wallLimit );
+        }
+
+        // handling vertical movement on a staircase
+        dir.set(0, -1, 0);
+        pos.y += 1.5
+        this.raycaster.set( pos, dir );
+
+        intersect = this.raycaster.intersectObject( this.proxy ); // proxy = staircase
+        if (intersect.length > 0 ){
+            this.dolly.position.copy( intersect[0].point )
+        }
         
         //Restore the original rotation
         this.dolly.quaternion.copy( quaternion ); 

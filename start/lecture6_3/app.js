@@ -173,6 +173,17 @@ class App{
         
         }
         
+        function onConnected( event ){
+            clearTimeout( timeoutId );
+        }
+
+        function connectionTimeout(){
+            self.useGaze = true;
+            self.gazeController = new GazeController( self.scene, self.dummyCam );
+        }
+
+        const timeoutId = setTimeout( connectionTimeout, 2000)
+
         this.controllers = this.buildControllers( this.dolly );
         
         this.controllers.forEach( ( controller ) =>{
@@ -307,7 +318,14 @@ class App{
         const dt = this.clock.getDelta();
         
         if (this.renderer.xr.isPresenting){
-            if (this.selectPressed){
+            let moveGaze = false;
+
+            if (this.useGaze && this.gazeController!==undefined){
+                this.gazeController.update(); // update the gazeController from the render loop to ensure that it checks the camera orientation
+                moveGaze = ( this.gazeController.mode == GazeController.Modes.MOVE ); // GazeController has a number of state, but this time the state that we need to check is the MOVE state
+            }
+
+            if (this.selectPressed || moveGaze){
                 this.moveDolly(dt);
                 if (this.boardData){
                     const scene = this.scene;
