@@ -3,7 +3,7 @@ import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
 import { DRACOLoader } from '../../libs/three/jsm/DRACOLoader.js';
 import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
 import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
-import { Pathfinding } from '../../libs/three/jsm/three-pathfinding.module.js';
+import { Pathfinding } from '../../libs/pathfinding/Pathfinding.js';
 import { Stats } from '../../libs/stats.module.js';
 import { VRButton } from '../../libs/VRButton.js';
 import { TeleportMesh } from '../../libs/TeleportMesh.js';
@@ -314,14 +314,36 @@ class App{
                 self.scene.add( self.gun );
                 
                 //Step 1 - move the bullet, children[0] to the scene not the gun
+                const bullet = gltf.scene.getObjectByName("Bullet");
+                self.scene.add( bullet );
                 
                 //Step 2 - collect the ghoul skinned meshes as an array of targets
-                
+                const targets = [];
+                self.ghouls.forEach( ghoul => targets.push( ghoul.object.children[1] ));
+
                 //Step 3 - create a Bullet instance
-                
+                self.bullet = new Bullet( bullet, {
+                    gun: self.gun,
+                    targets
+                });
                 
                 //Step 8 - Add a hit event listener
-                
+                self.bullet.addEventListener( 'hit', ev => { // when a bullet hits one of its target, it dispatches a "hit" event, that includes in this mesh as the property
+                    const tmp = self.ghouls.filter( ghoul => ev.hitObject == ghoul.object.children[1] ); // filters the ghouls element that match with the hit object
+                    if (tmp.length>0){
+                        self.sounds.snarl.play(); // trigger a sound
+                        const ghoul = tmp[0]; // set the ghoul object to be the one and only item found by the filter
+                        ghoul.action = 'die'; // set of function that will trigger the die animation
+                        ghoul.dead = true;
+                        ghoul.calculatedPath = null; // to stop the dead ghoul from patrolling
+                        ghoul.curAction.loop = THREE.LoopOnce; // to make the dead animation happens only once (no loop)
+                        ghoul.curAction.clampWhenFinished = true; // to make the character stay laying down still after 'dead' animation is finished, instead of making the ghoul's character going back to its original standing state after they finish the animation
+                        ghoul.mixer.addEventListener( 'finished', e => { // add finish event to the mixer that 
+                            self.scene.remove( ghoul.object );           // will remove the ghoul object when their die animation is complete
+                            self.ghouls.splice( self.ghouls.indexOf(ghoul), 1 ); // and remove the ghoul from the ghouls array
+                        });
+                    }
+                });
                 
                 self.initGame();
 			},
@@ -504,7 +526,8 @@ class App{
             this.userData.selectPressed = true;
             if (this.userData.gun){
                 //Step 7 - Call fire method for gun and sfx shot
-                
+                self.sounds.shot.play();
+                self.bullet.fire();
             }else if (this.userData.teleport){
                 self.player.object.position.copy( this.userData.teleport.position );
                 this.userData.teleport.visible = false;
@@ -553,18 +576,20 @@ class App{
         this.markables.forEach( markable => self.collisionObjects.push( markable )); 
         
         //Step 5 - add the gun collider to the collisionObjects
-        
+        const gunCollider = this.gun.getObjectByName( "Collider" );
+        gunCollider.material.visible = false; // dont want to display the collider
+        this.collisionObjects.push( gunCollider );
     }
 
     pickupGun( controller = this.controllers[0] ){
-        this.gun.position.set(0,0,0);
-        this.gun.quaternion.identity();
+        this.gun.position.set(0,0,0); // set the gun position to the origin, since it's going to be a child of the controller
+        this.gun.quaternion.identity(); // set the orientation, to the identitiy that simply means it's not rotated
         //this.gun.rotateY( -Math.PI/2 )
-        controller.children[0].visible = false;
-        controller.add( this.gun );
-        controller.userData.gun = true;
+        controller.children[0].visible = false; // hide the ray/line that comes from the controller
+        controller.add( this.gun ); // set the gun as the child of the controller
+        controller.userData.gun = true; 
         const grip = controller.userData.grip;
-        this.dolly.remove( grip );    
+        this.dolly.remove( grip ); // remove the grip
     }
     
     intersectObjects( controller ) {
@@ -596,7 +621,7 @@ class App{
                 marker.visible = true;
             }else if (intersect.object.parent === this.gun){
                 //Step 6 - call pickup gun
-                
+                this.pickupGun( controller );
                 
             }else if (intersect.object.parent && intersect.object.parent instanceof TeleportMesh){
                 intersect.object.parent.selected = true;
@@ -667,7 +692,7 @@ class App{
             this.ghouls.forEach( ghoul => { ghoul.update(dt) });
             
             //Step 4 - update the bullet
-            
+            this.bullet.update(dt);
         }
 		
 		this.renderer.render(this.scene, this.camera);

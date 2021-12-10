@@ -120,7 +120,29 @@ class App{
 							self.navmesh = child;
                             child.geometry.scale(scale, scale, scale);
                             child.scale.set(2,2,2);
-						}
+						}else if(child.name== "SD_Prop_Chest_Skull_Lid_01"){
+                            self.interactables.push( new Interactable( child, {
+                                mode: "tweens",
+                                tweens:[{
+                                    target: child.quaternion, // the property of the mesh that will be animated overtime
+                                    channel: 'x', // the component of the property we're changing
+                                    start: 0, // the value it should have initially
+                                    end: -0.7, // the value it shoud have after the motion is applied
+                                    duration: 1 // the length of the motion
+                                }]
+                            }))
+                        }else if(child.name== "Door_1"){
+                            self.interactables.push( new Interactable( child, {
+                                mode: "tweens",
+                                tweens:[{
+                                    target: child.quaternion,
+                                    channel: 'z',
+                                    start: 0,
+                                    end: 0.6,
+                                    duration: 1
+                                }]
+                            }))
+                        }
 					}
 				});
                 
@@ -237,6 +259,7 @@ class App{
                 self.teleports.forEach( teleport => teleport.fadeOut(0.5) );
             }else if( this.userData.interactable ){
                 //Step 4 - call play for the interactable
+                this.userData.interactable.play();
             }else if (this.userData.marker.visible){
                 const pos = this.userData.marker.position;
                 console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
@@ -272,7 +295,7 @@ class App{
         this.teleports.forEach( teleport => self.collisionObjects.push(teleport.children[0]) );
         
         //Step 2 - for each Interactable add the mesh property to the collisionObjects array.
-                    
+        this.interactables.forEach( interactable => self.collisionObjects.push(interactable.mesh) ); // interactable.mesh is added so that the raycaster in the instersectObjects method includes the Interactables
     }
 
     intersectObjects( controller ) {
@@ -302,10 +325,13 @@ class App{
             }else if (intersect.object.parent && intersect.object.parent instanceof TeleportMesh){
                 intersect.object.parent.selected = true;
                 controller.userData.teleport = intersect.object.parent;
-            }else{
+            }else{ 
                 //Step 3 - is the intersect.object an Interactable
-                
+                const tmp = this.interactables.filter( interactable => interactable.mesh == intersect.object ); // to check if the mesh in interactables is the one that intersects. using mesh's method filter because Interactable is a Mesh' derivative(?)
                 //If so set the Interactable property of the controllers userData object
+                if (tmp.length>0) controller.userData.interactable = tmp[0]; // the filtered mesh, which should have only 1 item
+                
+                
             }
             
         } 
@@ -361,7 +387,10 @@ class App{
                 self.intersectObjects( controller );
             });
             
-            //Step 1 call update for each Interactable
+            //Step 1 call update for each Interactable            
+            this.interactables.forEach( interactable =>{
+                interactable.update(dt); // needs dt params based on the Interactable class script
+            });
 
             this.player.update(dt);
         }

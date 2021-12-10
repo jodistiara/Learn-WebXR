@@ -150,7 +150,14 @@ class App{
         
         const self = this;
         
-        
+        this.teleports = [];
+        locations.forEach( location => {
+            const teleport = new TeleportMesh();
+            teleport.position.copy( location );
+            self.scene.add( teleport );
+            self.teleports.push( teleport );
+        })
+
 		this.setupXR();
 
 		this.loading = false;
@@ -205,7 +212,10 @@ class App{
         
         function onSelectStart( ){
             this.userData.selectPressed = true;
-           if (this.userData.marker.visible){
+            if (this.userData.teleport){ // check if the teleport property is set for the controller's userData object
+                self.player.object.position.copy( this.userData.teleport.position ); // move the player to the teleport position
+                // self.teleports.forEach( teleport => teleport.fadeOut(0.5));
+            }else if (this.userData.marker.visible){
                 const pos = this.userData.marker.position;
                 console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
             }
@@ -217,10 +227,12 @@ class App{
         
         function onSqueezeStart( ){
             this.userData.squeezePressed = true;
+            self.teleports.forEach( teleport => teleport.fadeIn(1) );
         }
         
         function onSqueezeEnd( ){
             this.userData.squeezePressed = false;
+            self.teleports.forEach( teleport => teleport.fadeOut(1) );
         }
         
         const btn = new VRButton( this.renderer );
@@ -235,7 +247,8 @@ class App{
         })
         
         this.collisionObjects = [this.navmesh];
-                    
+
+        this.teleports.forEach( teleport => self.collisionObjects.push(teleport.children[0]) );
     }
 
     intersectObjects( controller ) {
@@ -261,6 +274,9 @@ class App{
                 marker.scale.set(1,1,1);
                 marker.position.copy( intersect.point );
                 marker.visible = true;
+            }else if (intersect.object.parent && intersect.object.parent instanceof TeleportMesh){ // checking if the intersected object's parent is TeleportMesh (which means the object is a teleporter)
+                intersect.object.parent.selected = true;
+                controller.userData.teleport = intersect.object.parent;
             }
     
         } 
@@ -307,6 +323,11 @@ class App{
         
         if (this.renderer.xr.isPresenting){
 
+            this.teleports.forEach( teleport => {
+                teleport.selected = false;
+                teleport.update();
+            });
+            
             this.controllers.forEach( controller => {
                 self.intersectObjects( controller );
             })
