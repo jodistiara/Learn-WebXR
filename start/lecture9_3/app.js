@@ -157,11 +157,24 @@ class App{
         }
         
         function showOption(){
-            
+            const options = self.questions.questions[questionIndex].options;
+            if (answerIndex<0) answerIndex = 0;
+            if (answerIndex>=options.length) answerIndex = options.length - 1;
+            let display = (answerIndex>0) ? "block" : "none";
+            self.ui.updateConfig("prev", "display", display);
+            display = (answerIndex<(options.length-1)) ? "block" : "none";
+            self.ui.updateConfig("next", "display", display);
+            self.ui.updateElement( "header", "Select a response");
+            self.ui.updateElement("panel", options[answerIndex].text);            
         }
         
         function showQuestion(){
-            
+            const question = self.questions.questions[questionIndex];
+            self.ui.updateElement( "header", "Heather");
+            self.ui.updateElement("panel", question.text);
+            self.ui.updateConfig("prev", "display", "none"); // hiding it
+            self.ui.updateConfig("next", "display", "none"); // hiding it
+            self.playSound(`option${questionIndex + 1}`);            
         }
         
         function onPrev(){
@@ -175,19 +188,19 @@ class App{
         }
         
         function onContinue(){
-            if ( questionIndex<0 ){
+            if (questionIndex<0){ //Coming from intro
                 questionIndex = 0;
-                showQuestion();
+                showQuestion()
                 answerIndex = -1;
-            }else if ( answerIndex==-1 ){
+            }else if (answerIndex==-1){ //Show first option
                 answerIndex = 0;
                 showOption();
-            }else{
+            }else{ //Option selected
                 const question = self.questions.questions[questionIndex];
                 questionIndex = question.options[answerIndex].next;
-                if (questionIndex==-1){
-                    showIntro();
-                }else{
+                if (questionIndex==-1){ // has completed the scenario
+                    showIntro(); // loops back to the intro
+                }else{ // the scenario is not complete
                     answerIndex = -1;
                     showQuestion();
                 }
@@ -272,7 +285,16 @@ class App{
     }
     
     playSound( sndname ){
-        
+        const sound = this.speech;
+
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load(`audio/${sndName}.mp3`, buffer =>{
+            if (sound.isPlaying) sound.stop();
+            sound.setBuffer( buffer );
+            sound.setLoop( false );
+            sound.setVolume( 1.0 );
+            sound.play();
+        })
     }
     
     setupXR(){
