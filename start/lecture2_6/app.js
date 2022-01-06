@@ -34,8 +34,8 @@ class App{
 		
         //Add code here
         this.loadingBar = new LoadingBar();
-        // this.loadGLTF(); // to load gltf formatted file
-        this.loadFBX(); // to load fbx formatted file
+        this.loadGLTF(); // to load gltf formatted file
+        // this.loadFBX(); // to load fbx formatted file
         
         this.controls = new OrbitControls( this.camera, this.renderer.domElement );
         this.controls.target.set(0, 3.5, 0);
@@ -69,7 +69,7 @@ class App{
         loader.load(
             'office-chair.glb', // 3D assets 's path
             function(gltf){ // onLoad callback
-                self.chair = gltf.scene; // GLTF's loader's scene is being used
+                self.chair = gltf.scene; // store gltf's scene to a new var for then it can be rotated on the render method
 
                 const bbox = new THREE.Box3().setFromObject( gltf.scene );
                 console.log(`min:${vector3ToString(bbox.min, 2)} - max:${vector3ToString(bbox.max, 2)}`);
